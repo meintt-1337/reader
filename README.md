@@ -62,4 +62,4 @@ Chỉ cần tải file `index.html` về và mở bằng trình duyệt. Cần c
 
 ## Giấy phép
 
-Tự chọn giấy phép phù hợp (ví dụ MIT). Lưu ý epub.js (BSD-2-Clause) và JSZip (MIT hoặc GPLv3) có điều khoản riêng.
+MIT
