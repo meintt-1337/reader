@@ -1,0 +1,233 @@
+<!doctype html>
+<html lang="vi">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="theme-color" content="#16181c">
+<title>Góc đọc sách</title>
+<style>
+:root{--bg:#fff;--fg:#1d1f23;--mut:#6b7280;--line:#e5e7eb;--panel:#f6f7f8;--acc:#4a6a8a}
+:root[data-t="sepia"]{--bg:#f4ecd8;--fg:#433422;--mut:#8a7860;--line:#e0d4b8;--panel:#ece2c8;--acc:#8a5a2b}
+:root[data-t="dark"]{--bg:#16181c;--fg:#d6d8dc;--mut:#8b9098;--line:#2a2d33;--panel:#1e2126;--acc:#8fb0d0}
+*{box-sizing:border-box}
+html,body{height:100%;margin:0}
+body{background:var(--bg);color:var(--fg);font:15px/1.5 system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;display:flex;flex-direction:column;padding:env(safe-area-inset-top) 0 env(safe-area-inset-bottom)}
+button{font:inherit;color:inherit;background:none;border:1px solid var(--line);border-radius:8px;padding:6px 12px;cursor:pointer}
+button:hover{background:var(--panel)}
+button:focus-visible,label:focus-within{outline:2px solid var(--acc);outline-offset:2px}
+button.on{background:var(--fg);color:var(--bg);border-color:var(--fg)}
+header,footer{display:flex;align-items:center;gap:8px;padding:8px 14px;border-color:var(--line);flex:none}
+header{border-bottom:1px solid var(--line)}
+footer{border-top:1px solid var(--line);justify-content:space-between}
+#title{flex:1;text-align:center;color:var(--mut);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+main{flex:1;min-height:0;position:relative}
+#viewer{height:100%;max-width:780px;margin:0 auto;padding:0 8px}
+#empty{position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:14px;text-align:center;padding:24px}
+#empty h1{margin:0;font:600 28px/1.3 Georgia,"Noto Serif",serif}
+#empty p{margin:0;color:var(--mut);max-width:44ch}
+#empty.drag{background:var(--panel)}
+.pick{background:var(--fg);color:var(--bg);border-color:var(--fg);padding:10px 20px;border-radius:10px;display:inline-block;cursor:pointer}
+input[type=file]{position:absolute;opacity:0;width:1px;height:1px}
+.side,.set{position:absolute;top:0;bottom:0;background:var(--panel);border:solid var(--line);overflow:auto;z-index:5;padding:14px;display:none}
+.side{left:0;width:min(340px,88vw);border-width:0 1px 0 0}
+.set{right:0;width:min(300px,88vw);border-width:0 0 0 1px}
+.side.open,.set.open{display:block}
+.side a{display:block;padding:7px 4px;color:var(--fg);text-decoration:none;border-radius:6px;cursor:pointer}
+.side a:hover{background:var(--line)}
+.set h3{margin:16px 0 6px;font-size:13px;color:var(--mut);font-weight:600}
+.set h3:first-child{margin-top:0}
+.row{display:flex;gap:6px;flex-wrap:wrap}
+.hint{color:var(--mut);font-size:13px;margin-top:18px;line-height:1.6}
+#pct{color:var(--mut);font-variant-numeric:tabular-nums}
+</style>
+</head>
+<body>
+<header>
+  <button id="bToc" aria-label="Mục lục (T)">Mục lục</button>
+  <div id="title">Chưa mở sách</div>
+  <label class="pick" style="padding:6px 12px;border-radius:8px" id="bOpen">Mở sách<input type="file" id="file" accept=".epub,application/epub+zip"></label>
+  <button id="bSet" aria-label="Cài đặt giao diện">Giao diện</button>
+</header>
+
+<main>
+  <div id="viewer"></div>
+
+  <div id="empty">
+    <h1>Góc đọc sách</h1>
+    <p>Chọn hoặc kéo thả một file EPUB vào đây. Sách chỉ được đọc ngay trong trình duyệt của bạn, không bị tải lên đâu cả.</p>
+    <label class="pick">Chọn file EPUB<input type="file" id="file2" accept=".epub,application/epub+zip"></label>
+  </div>
+
+  <nav class="side" id="toc" aria-label="Mục lục"></nav>
+
+  <aside class="set" id="set">
+    <h3>Nền</h3>
+    <div class="row" id="gT">
+      <button data-v="auto">Tự động</button><button data-v="light">Sáng</button><button data-v="sepia">Vàng</button><button data-v="dark">Tối</button>
+    </div>
+    <h3>Kiểu chữ</h3>
+    <div class="row" id="gF">
+      <button data-v="serif">Có chân</button><button data-v="sans">Không chân</button>
+    </div>
+    <h3>Cách đọc</h3>
+    <div class="row" id="gM">
+      <button data-v="scroll">Cuộn</button><button data-v="page">Lật trang</button>
+    </div>
+    <h3>Cỡ chữ</h3>
+    <div class="row">
+      <button id="fMinus" aria-label="Giảm cỡ chữ">A−</button><button id="fPlus" aria-label="Tăng cỡ chữ">A+</button>
+    </div>
+    <p class="hint"><b>Phím tắt</b><br>← → : trang hoặc phần trước/sau<br>T : mục lục<br>S : giao diện</p>
+  </aside>
+</main>
+
+<footer>
+  <button id="bPrev">Trước</button>
+  <span id="pct"></span>
+  <button id="bNext">Sau</button>
+</footer>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/epub.js/0.3.93/epub.min.js"></script>
+<script>
+(function(){
+  var $=function(i){return document.getElementById(i)};
+  var store={get:function(k,d){try{var v=localStorage.getItem(k);return v===null?d:v}catch(e){return d}},
+             set:function(k,v){try{localStorage.setItem(k,v)}catch(e){}}};
+  var S={t:store.get("t","auto"),f:store.get("f","serif"),m:store.get("m","scroll"),z:parseInt(store.get("z","110"),10)};
+  var PAL={light:{bg:"#ffffff",fg:"#1d1f23",link:"#4a6a8a"},sepia:{bg:"#f4ecd8",fg:"#433422",link:"#8a5a2b"},dark:{bg:"#16181c",fg:"#d6d8dc",link:"#8fb0d0"}};
+  var FONT={serif:'Georgia,"Noto Serif","Times New Roman",serif',sans:'system-ui,-apple-system,"Segoe UI",Roboto,sans-serif'};
+  var book=null,rend=null,key="",ready=false;
+
+  function theme(){
+    if(S.t!=="auto")return S.t;
+    return matchMedia("(prefers-color-scheme: dark)").matches?"dark":"light";
+  }
+  function rules(){
+    var p=PAL[theme()],f=FONT[S.f]+" !important",c=p.fg+" !important";
+    return {
+      "html,body":{background:p.bg+" !important",color:c},
+      "body":{"font-family":f,"line-height":"1.85 !important","padding-top":"16px !important","padding-bottom":"16px !important"},
+      "p,li,div,span,blockquote,h1,h2,h3,h4,h5,h6,td,th":{color:c,"font-family":f},
+      "p":{"text-align":"left !important"},
+      "a":{color:p.link+" !important"},
+      "img":{"max-width":"100% !important","height":"auto !important"}
+    };
+  }
+  function paint(){
+    document.documentElement.setAttribute("data-t",theme());
+    document.querySelector('meta[name=theme-color]').content=PAL[theme()].bg;
+    if(!rend)return;
+    rend.themes.fontSize(S.z+"%");
+    rend.getContents().forEach(function(c){c.addStylesheetRules(rules())});
+  }
+  function marks(){
+    [["gT","t"],["gF","f"],["gM","m"]].forEach(function(g){
+      $(g[0]).querySelectorAll("button").forEach(function(b){b.classList.toggle("on",b.dataset.v===S[g[1]])});
+    });
+  }
+
+  function render(at){
+    if(rend){try{rend.destroy()}catch(e){}}
+    $("viewer").innerHTML="";
+    var scroll=S.m==="scroll";
+    rend=book.renderTo("viewer",{width:"100%",height:"100%",spread:"none",
+      manager:scroll?"continuous":"default",flow:scroll?"scrolled":"paginated"});
+    rend.hooks.content.register(function(c){c.addStylesheetRules(rules())});
+    rend.on("relocated",function(loc){
+      store.set("pos:"+key,loc.start.cfi);
+      if(ready&&book.locations.length()){
+        var p=book.locations.percentageFromCfi(loc.start.cfi);
+        $("pct").textContent=Math.round(p*100)+"%";
+      }
+    });
+    rend.on("keyup",keys);
+    rend.themes.fontSize(S.z+"%");
+    return rend.display(at||undefined);
+  }
+
+  function open(file){
+    if(!file)return;
+    var fr=new FileReader();
+    fr.onload=function(){
+      if(book){try{book.destroy()}catch(e){}}
+      ready=false;$("pct").textContent="";
+      key=file.name+":"+file.size;
+      book=ePub(fr.result);
+      $("empty").style.display="none";
+      $("title").textContent=file.name.replace(/\.epub$/i,"");
+      render(store.get("pos:"+key,"")).catch(function(){
+        $("empty").style.display="flex";
+        alert("Không mở được file này. Hãy kiểm tra đây là EPUB không bị khóa bản quyền (DRM).");
+      });
+      book.loaded.metadata.then(function(m){if(m&&m.title)$("title").textContent=m.title});
+      book.loaded.navigation.then(function(n){
+        var h="";
+        (function walk(list,d){list.forEach(function(i){
+          h+='<a style="padding-left:'+(4+d*14)+'px" data-h="'+encodeURI(i.href)+'">'+esc(i.label.trim())+"</a>";
+          if(i.subitems)walk(i.subitems,d+1);
+        })})(n.toc,0);
+        $("toc").innerHTML=h||"<p>Sách này không có mục lục.</p>";
+      });
+      book.ready.then(function(){return book.locations.generate(1500)}).then(function(){
+        ready=true;
+        var l=rend&&rend.currentLocation&&rend.currentLocation();
+        if(l&&l.start)$("pct").textContent=Math.round(book.locations.percentageFromCfi(l.start.cfi)*100)+"%";
+      });
+    };
+    fr.readAsArrayBuffer(file);
+  }
+  function esc(s){return s.replace(/[&<>"]/g,function(c){return{"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]})}
+
+  function panel(id,other){
+    $(other).classList.remove("open");$(id).classList.toggle("open");
+  }
+  function keys(e){
+    if(e.target&&/INPUT|TEXTAREA/.test(e.target.tagName))return;
+    var k=e.key;
+    if(k==="ArrowRight"&&rend)rend.next();
+    else if(k==="ArrowLeft"&&rend)rend.prev();
+    else if(k==="t"||k==="T")panel("toc","set");
+    else if(k==="s"||k==="S")panel("set","toc");
+    else if(k==="Escape"){$("toc").classList.remove("open");$("set").classList.remove("open")}
+  }
+
+  // sự kiện
+  $("file").onchange=function(e){open(e.target.files[0])};
+  $("file2").onchange=function(e){open(e.target.files[0])};
+  document.addEventListener("keyup",keys);
+  $("bToc").onclick=function(){panel("toc","set")};
+  $("bSet").onclick=function(){panel("set","toc")};
+  $("bPrev").onclick=function(){rend&&rend.prev()};
+  $("bNext").onclick=function(){rend&&rend.next()};
+  $("toc").onclick=function(e){
+    var h=e.target.getAttribute&&e.target.getAttribute("data-h");
+    if(h&&rend){rend.display(decodeURI(h));$("toc").classList.remove("open")}
+  };
+  [["gT","t"],["gF","f"]].forEach(function(g){
+    $(g[0]).onclick=function(e){
+      var v=e.target.dataset&&e.target.dataset.v;if(!v)return;
+      S[g[1]]=v;store.set(g[1],v);marks();paint();
+    };
+  });
+  $("gM").onclick=function(e){
+    var v=e.target.dataset&&e.target.dataset.v;if(!v||v===S.m)return;
+    S.m=v;store.set("m",v);marks();
+    if(book){var l=rend.currentLocation();render(l&&l.start?l.start.cfi:"").then(paint)}
+  };
+  function zoom(d){S.z=Math.max(80,Math.min(200,S.z+d));store.set("z",S.z);paint()}
+  $("fMinus").onclick=function(){zoom(-10)};
+  $("fPlus").onclick=function(){zoom(10)};
+  matchMedia("(prefers-color-scheme: dark)").addEventListener("change",paint);
+
+  // kéo thả
+  var em=$("empty");
+  ["dragover","dragenter"].forEach(function(n){document.addEventListener(n,function(e){e.preventDefault();em.classList.add("drag")})});
+  ["dragleave","drop"].forEach(function(n){document.addEventListener(n,function(e){e.preventDefault();em.classList.remove("drag")})});
+  document.addEventListener("drop",function(e){open(e.dataTransfer.files[0])});
+
+  marks();paint();
+})();
+</script>
+</body>
+</html>
